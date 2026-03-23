@@ -240,17 +240,41 @@ class SquircleGUI:
     
     def start_bot(self):
         """Start the fishing bot"""
-        self.is_running = True
-        self.start_button.config(text="STOP BOT", bg='#f44336')
-        self.status_label.config(text="Status: Running", fg='#ffff00')
-        
-        # Update settings from GUI
-        self.update_settings_from_gui()
-        
-        # Start bot in separate thread
-        self.bot_thread = threading.Thread(target=self.run_bot)
-        self.bot_thread.daemon = True
-        self.bot_thread.start()
+        if not self.is_running:
+            self.is_running = True
+            self.start_button.config(text="STOP BOT", bg='#f44336')
+            self.status_label.config(text="Status: Running", fg='#ffff00')
+            
+            # Hide Python console window
+            self.hide_console()
+            
+            # Update settings from GUI
+            self.update_settings_from_gui()
+            
+            # Show status UI if enabled
+            if self.settings['ui_enabled']:
+                if self.status_ui is None:
+                    self.status_ui = StatusUI(self)
+                self.status_ui.show()
+            
+            # Start bot in separate thread
+            self.bot_thread = threading.Thread(target=self.run_bot)
+            self.bot_thread.daemon = True
+            self.bot_thread.start()
+    
+    def hide_console(self):
+        """Hide the Python console window"""
+        try:
+            import ctypes
+            import os
+            
+            # Get console window handle
+            console_hwnd = ctypes.windll.user32.FindWindowW(None, "python.exe", None)
+            if console_hwnd:
+                # Hide the console
+                ctypes.windll.user32.ShowWindow(console_hwnd, 0)  # SW_HIDE
+        except:
+            pass
     
     def stop_bot(self):
         """Stop the fishing bot"""

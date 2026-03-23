@@ -18,20 +18,22 @@ class StatusUI:
         self.drag_start_y = 0
         
     def setup_window(self):
-        """Setup the status window properties"""
+        """Setup status window properties"""
         self.root.title("Bot Status")
         self.root.geometry("300x200")
-        self.root.configure(bg='#2d2d2d')
+        self.root.configure(bg='#404040')  # Light grey background
         
-        # Remove window decorations
+        # Remove window decorations and make it look like a small overlay
         self.root.overrideredirect(True)
+        self.root.attributes('-toolwindow', True)  # Makes it appear in taskbar but not as main window
         
         # Always on top if main GUI has it enabled
         if self.main_gui.settings.get('always_on_top', True):
             self.root.attributes('-topmost', True)
         
-        # Make transparent background
-        self.root.attributes('-transparentcolor', '#2d2d2d')
+        # Minimize to system tray on start
+        self.root.withdraw()  # Start hidden
+        self.root.deiconify()  # Show in taskbar but not as main window
         
     def setup_widgets(self):
         """Setup status display widgets"""

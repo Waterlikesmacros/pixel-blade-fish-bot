@@ -9,7 +9,19 @@
     "purple": true,
     "grey": false
   },
-  "always_on_top": true,
+  "always_on_top": false,
   "anti_stuck": true,
-  "total_fishes": 0
+  "total_fishes": 0,
+  "ui_enabled": false,
+  "ui_position": {
+    "x": 50,
+    "y": 50
+  },
+  "rarity_counters": {
+    "Vaulted(Red)": 0,
+    "Legendary(Yellow)": 0,
+    "Rare(Blue)": 0,
+    "Epic(Purple)": 0,
+    "Common(Grey)": 0
+  }
 }
