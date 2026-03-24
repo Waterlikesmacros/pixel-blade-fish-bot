@@ -11,10 +11,13 @@ import json
 import os
 import time
 import logging
+import webbrowser
 
 # Import bot components
 from bot_core import PixelBladeFishingBot
 from status_window import StatusUI
+from enhanced_discord_tab import EnhancedDiscordTab
+from panic_webhook import PanicWebhookSystem
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -27,13 +30,17 @@ class SquircleGUI:
         self.bot_thread = None
         self.is_running = False
         self.status_ui = None
+        self.panic_webhook = PanicWebhookSystem()  # Add panic webhook system
         
         # Settings
         self.settings = {
             'fishing_key': 'e',
             'key_modifiers': [],
             'discord_webhook': '',
-            'send_loot_colors': {'Vaulted(Red)': True, 'Legendary(Yellow)': True, 'Rare(Blue)': True, 'Epic(Purple)': True, 'Common(Grey)': False},
+            'panic_webhook_enabled': False,
+            'send_image': True,
+            'send_loot_colors': {'Vaulted(Red)': True, 'Legendary(Yellow)': True, 'Epic(Purple)': True, 'Rare(Blue)': True, 'Common(Grey)': False},
+            'selected_items': {},
             'always_on_top': True,
             'anti_stuck': True,
             'total_fishes': 0,
@@ -158,6 +165,33 @@ class SquircleGUI:
             command=self.toggle_ui
         )
         ui_cb.pack(pady=5)
+        
+        # Discord section
+        discord_frame = tk.Frame(main_frame, bg='#2d2d2d')
+        discord_frame.pack(pady=20)
+        
+        # Discord info text
+        discord_info = tk.Label(
+            discord_frame,
+            text="Join Discord for early access updates and support!",
+            bg='#2d2d2d',
+            fg='#7289da',  # Discord blue color
+            font=('Arial', 10)
+        )
+        discord_info.pack(pady=5)
+        
+        # Discord link button
+        discord_button = tk.Button(
+            discord_frame,
+            text="🎮 Join Discord Server",
+            command=self.open_discord,
+            bg='#7289da',  # Discord blue
+            fg='white',
+            font=('Arial', 10, 'bold'),
+            width=20,
+            cursor='hand2'
+        )
+        discord_button.pack(pady=5)
     
     def create_settings_tab(self):
         """Create settings tab"""
@@ -190,46 +224,10 @@ class SquircleGUI:
         tk.Button(settings_frame, text="Save Settings", command=self.save_settings, bg='#4CAF50', fg='white').pack(pady=20)
     
     def create_discord_tab(self):
-        """Create Discord webhook tab"""
-        discord_frame = tk.Frame(self.notebook, bg='#2d2d2d')
+        """Create enhanced Discord webhook tab"""
+        self.enhanced_discord_tab = EnhancedDiscordTab(self.notebook, self.settings)
+        discord_frame = self.enhanced_discord_tab.setup_ui()
         self.notebook.add(discord_frame, text='Discord')
-        
-        # Webhook URL
-        tk.Label(discord_frame, text="Discord Webhook URL:", bg='#2d2d2d', fg='white').pack(anchor='w', padx=10, pady=5)
-        
-        self.webhook_entry = tk.Text(discord_frame, height=3, bg='#404040', fg='white')
-        self.webhook_entry.insert('1.0', self.settings['discord_webhook'])
-        self.webhook_entry.pack(fill='x', padx=10, pady=5)
-        
-        # Loot color selection
-        tk.Label(discord_frame, text="Send loot for these rarities:", bg='#2d2d2d', fg='white').pack(anchor='w', padx=10, pady=10)
-        
-        colors_frame = tk.Frame(discord_frame, bg='#2d2d2d')
-        colors_frame.pack(padx=10, pady=5)
-        
-        self.loot_vars = {}
-        for rarity in ['Vaulted(Red)', 'Legendary(Yellow)', 'Rare(Blue)', 'Epic(Purple)', 'Common(Grey)']:
-            var = tk.BooleanVar(value=self.settings['send_loot_colors'].get(rarity, True))
-            self.loot_vars[rarity] = var
-            tk.Checkbutton(
-                colors_frame, 
-                text=rarity, 
-                variable=var,
-                bg='#2d2d2d', 
-                fg='white',
-                selectcolor='#404040'
-            ).pack(anchor='w', pady=2)
-        
-        # Send image option
-        self.send_image_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(
-            discord_frame, 
-            text="Send screenshot with loot", 
-            variable=self.send_image_var,
-            bg='#2d2d2d', 
-            fg='white',
-            selectcolor='#404040'
-        ).pack(anchor='w', padx=10, pady=10)
     
     def create_stats_tab(self):
         """Create statistics tab"""
@@ -287,7 +285,13 @@ class SquircleGUI:
             self.bot.fishing_key = self.settings['fishing_key']
             self.bot.fishing_key_modifiers = self.settings['key_modifiers']
             
-            logger.info("Bot started with enhanced detection")
+            # Configure panic webhook
+            self.panic_webhook.configure(
+                self.settings['discord_webhook'],
+                self.settings['panic_webhook_enabled']
+            )
+            
+            logger.info("Bot started with enhanced detection and panic webhook")
             
             while self.is_running:
                 # Anti-stuck check if enabled
@@ -297,7 +301,12 @@ class SquircleGUI:
                 
                 # Look for fishing UI
                 image = self.bot.capture_screen()
-                if self.bot.detect_fishing_ui(image):
+                fishing_detected = self.bot.detect_fishing_ui(image)
+                
+                # Check panic webhook status
+                self.panic_webhook.check_fishing_status(fishing_detected)
+                
+                if fishing_detected:
                     self.update_status("Fishing UI detected - starting cycle")
                     
                     # Start fishing
@@ -306,8 +315,17 @@ class SquircleGUI:
                     
                     # Wait for optimal timing
                     if self.bot.wait_for_circle_overlap():
-                        self.bot.press_fishing_key()
-                        time.sleep(1.0)
+                        # Check if we see "10x" text (need to press E 10+ times)
+                        image = self.bot.capture_screen()
+                        if self.bot.detect_10x_text(image):
+                            self.update_status("Detected 10x - spamming until UI disappears")
+                            self.bot.spam_until_ui_gone()
+                        else:
+                            # Normal fishing - press E at the right moment
+                            self.bot.press_fishing_key()
+                            time.sleep(1.0)
+                            # Spam E to clear any remaining UI
+                            self.bot.spam_fishing_key()
                         
                         # Check for loot
                         image = self.bot.capture_screen()
@@ -396,7 +414,11 @@ class SquircleGUI:
         self.settings['fishing_key'] = self.key_entry.get()
         self.settings['anti_stuck'] = self.anti_stuck_var.get()
         self.settings['always_on_top'] = self.always_on_top_var.get()
-        self.settings['discord_webhook'] = self.webhook_entry.get('1.0', tk.END).strip()
+        
+        # Get enhanced Discord settings
+        if hasattr(self, 'enhanced_discord_tab'):
+            discord_settings = self.enhanced_discord_tab.get_settings()
+            self.settings.update(discord_settings)
         
         # Update modifiers
         modifiers = []
@@ -407,10 +429,6 @@ class SquircleGUI:
         if self.ctrl_var.get():
             modifiers.append('ctrl')
         self.settings['key_modifiers'] = modifiers
-        
-        # Update loot colors
-        for color, var in self.loot_vars.items():
-            self.settings['send_loot_colors'][color] = var.get()
         
         self.save_settings()
     
@@ -448,6 +466,21 @@ class SquircleGUI:
         self.settings['total_fishes'] = 0
         self.fishes_label.config(text="0")
         self.save_settings()
+    
+    def open_discord(self):
+        """Open Discord server link"""
+        try:
+            webbrowser.open("https://discord.gg/vUtkHCYbvj")
+            logger.info("Opened Discord server link")
+        except Exception as e:
+            logger.error(f"Failed to open Discord link: {e}")
+            # Fallback: show message with link
+            messagebox.showinfo(
+                "Discord Server",
+                "Join our Discord server for early access updates!\n\n"
+                "https://discord.gg/vUtkHCYbvj\n\n"
+                "(Copy this link if it didn't open automatically)"
+            )
     
     def run(self):
         """Start the GUI"""

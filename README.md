@@ -2,6 +2,8 @@
 
 An automated fishing bot for the game Pixel Blade that uses computer vision to detect fishing UI elements and automate the fishing process.
 
+Join the discord! https://discord.gg/vUtkHCYbvj
+
 Everything is open source! Feel free to fork and modify as you see fit if you want to customize it for your needs or if its not good enough for you.
 For non programmers, there are instructions on how to edit the bot in the code in the green text.
 
@@ -13,7 +15,7 @@ For non programmers, there are instructions on how to edit the bot in the code i
 - **Configurable Settings**: Easy to adjust timing, detection parameters, and screen regions
 - **Safe Operation**: Includes failsafe mechanisms and logging
 
-## How It Works                                          bnm
+## How It Works                                          
 
 1. **Start Fishing**: Press Alt/custom keybind to initiate fishing
 2. **UI Detection**: Waits for the fishing UI to appear (detects circular patterns)
@@ -34,7 +36,7 @@ For non programmers, there are instructions on how to edit the bot in the code i
 ```bash
 pip install -r requirements.txt
 ```
-
+Alternative: Download the .exe file from [here](https://github.com/joshuapb/pixel-blade-fish-bot/releases)
 
 ## Usage
 

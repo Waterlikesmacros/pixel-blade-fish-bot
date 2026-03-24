@@ -73,6 +73,10 @@ class PixelBladeFishingBot:
                         if circularity > 0.3:
                             return True
         
+        # Method 2: Look for "10x" text (final circle at full strength)
+        if self.detect_10x_text(image):
+            return True
+        
         return False
     
     def detect_circle_overlap(self, image: np.ndarray) -> bool:
@@ -125,6 +129,50 @@ class PixelBladeFishingBot:
                         return True, rarity_name, (x, y, w, h)
         
         return False, None, None
+    
+    def detect_10x_text(self, image: np.ndarray) -> bool:
+        """Detect '10x' text pattern (final circle at full strength)"""
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # Apply adaptive threshold for better text detection
+        binary = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        
+        # Look for text patterns
+        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            if 20 < w < 100 and 20 < h < 100:  # Reasonable text size for "10x"
+                # Extract region and check for '10x' pattern
+                roi = binary[y:y+h, x:x+w]
+                if self.detect_10x_pattern(roi):
+                    return True
+        
+        return False
+    
+    def detect_10x_pattern(self, roi: np.ndarray) -> bool:
+        """Detect '10x' character pattern in ROI"""
+        h, w = roi.shape
+        if h < 15 or w < 30:  # Minimum size for "10x"
+            return False
+        
+        # Check for '1', '0', and 'x' characters
+        # Split ROI into 3 parts for '1', '0', 'x'
+        third_w = w // 3
+        
+        # '1' should have vertical lines
+        part1 = roi[:, :third_w]
+        has_vertical = np.sum(part1) > 100
+        
+        # '0' should have circular shape (hollow center)
+        part2 = roi[:, third_w:2*third_w]
+        has_circular = np.sum(part2) > 100
+        
+        # 'x' should have diagonal lines
+        part3 = roi[:, 2*third_w:]
+        has_diagonal = np.trace(part3) > 30 and np.trace(np.fliplr(part3)) > 30
+        
+        return has_vertical and has_circular and has_diagonal
     
     def press_fishing_key(self):
         """Press the fishing key with modifiers"""
@@ -186,6 +234,27 @@ class PixelBladeFishingBot:
                 return True
             time.sleep(self.check_interval)
         return False
+    
+    def spam_until_ui_gone(self, max_spams=20):
+        """Spam E key until fishing UI disappears (for 10x situations)"""
+        spams = 0
+        while spams < max_spams:
+            # Check if UI is still visible
+            image = self.capture_screen()
+            if not self.detect_fishing_ui(image):
+                logger.info(f"Fishing UI disappeared after {spams} E presses")
+                break
+            
+            # Press E
+            self.press_fishing_key()
+            spams += 1
+            time.sleep(0.1)  # Quick spam
+        
+        if spams >= max_spams:
+            logger.warning(f"UI still visible after {max_spams} E presses - stopping spam")
+        
+        # Extra spam to make sure UI is completely gone
+        self.spam_fishing_key()
     
     def spam_fishing_key(self, duration: float = 2.0):
         """Spam fishing key to clear remaining UI"""
