@@ -36,7 +36,11 @@ For non programmers, there are instructions on how to edit the bot in the code i
 ```bash
 pip install -r requirements.txt
 ```
+<<<<<<< HEAD
 Alternative: Download the .exe file from [here](https://github.com/joshuapb/pixel-blade-fish-bot/releases)
+=======
+Alternative: Download the .exe file from [here](https://github.com/Waterlikesmacros/pixel-blade-fish-bot/releases/tag/Update)
+>>>>>>> 8f30ae1722487fcc0ee275b01e5224352b09257f
 
 ## Usage
 
@@ -136,7 +140,7 @@ FISHING_KEY_MODIFIERS = ['alt+shift+ctrl']
 
 ## Disclaimer
 
-This bot is for educational purposes only. Use at your own risk and make sure to comply with the game's terms of service.
+This bot is for educational purposes only. Use at your own risk and make sure to comply with the games rules/FBG rules.
 
 ## License
 
